@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>💰 Máy Tính Lãi Suất (Lịch Sử)</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        /* --- CẤU HÌNH GIAO DIỆN --- */
+        :root {
+            --bg-body: #f0f2f5;
+            --bg-card: #ffffff;
+            --text-main: #333;
+            --text-label: #555;
+            --border: #ddd;
+            --primary: #007bff;
+            --primary-hover: #0056b3;
+            --highlight: #28a745;
+            --history-bg: #f8f9fa;
+        }
+
+        .dark-mode {
+            --bg-body: #18191a;
+            --bg-card: #242526;
+            --text-main: #e4e6eb;
+            --text-label: #b0b3b8;
+            --border: #3e4042;
+            --primary: #2d88ff;
+            --primary-hover: #1877f2;
+            --highlight: #45bd62;
+            --history-bg: #303031;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+            transition: 0.3s;
+        }
+
+        .wrapper { width: 100%; max-width: 500px; }
+
+        .container {
+            background-color: var(--bg-card);
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        /* Nút Dark Mode */
+        .theme-toggle {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: none;
+            border: none;
+            font-size: 22px;
+            cursor: pointer;
+            color: var(--text-main);
+            z-index: 10;
+        }
+
+        h1 { text-align: center; color: var(--primary); margin-top: 0; font-size: 22px; }
+
+        .input-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: 600; color: var(--text-label); font-size: 14px; }
+        
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-size: 16px;
+            background-color: var(--bg-card);
+            color: var(--text-main);
+            font-family: monospace;
+            font-weight: bold;
+        }
+        input:focus { border-color: var(--primary); outline: none; }
+
+        /* Nút bấm */
+        .btn-group { display: flex; gap: 10px; margin-top: 20px; }
+        
+        button.btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 15px;
+            color: white;
+            transition: 0.2s;
+        }
+        .btn-calc { background-color: var(--primary); }
+        .btn-calc:hover { background-color: var(--primary-hover); }
+        
+        /* Nút xuất ảnh ẩn mặc định */
+        .btn-export { background-color: var(--highlight); display: none; align-items: center; justify-content: center; }
+        
+        /* Kết Quả */
+        #results {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: var(--history-bg);
+            border-radius: 8px;
+            border: 1px dashed var(--border);
+        }
+        .row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 14px; }
+        .row.big { border-top: 1px solid var(--border); padding-top: 10px; margin-top: 10px; }
+        .row.big .val { font-size: 18px; color: var(--highlight); }
+        .val { font-weight: bold; }
+
+        /* Lịch Sử */
+        .history-box {
+            background-color: var(--bg-card);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .history-header h3 { margin: 0; font-size: 18px; color: var(--text-label); }
+        .btn-clear { background: none; border: none; color: #dc3545; cursor: pointer; font-size: 13px; text-decoration: underline; }
+
+        .history-list { list-style: none; padding: 0; margin: 0; max-height: 300px; overflow-y: auto; }
+        .history-item { border-bottom: 1px solid var(--border); padding: 10px 0; font-size: 13px; }
+        .history-item:last-child { border-bottom: none; }
+        .h-time { color: #888; font-size: 11px; margin-bottom: 4px; }
+        .h-detail { display: flex; justify-content: space-between; margin-bottom: 2px; }
+        .h-total { color: var(--highlight); font-weight: bold; }
+
+    </style>
+</head>
+<body>
+
+<div class="wrapper">
+    <div class="container" id="capture-area">
+        <button class="theme-toggle" id="btn-theme" onclick="toggleTheme()">🌓</button>
+        
+        <h1>🏦 Tính Lãi Tiết Kiệm</h1>
+
+        <div class="input-group">
+            <label>Số tiền gửi (VNĐ)</label>
+            <input type="text" id="principal" oninput="formatCurrency(this)" placeholder="Ví dụ: 100.000.000">
+        </div>
+        <div class="input-group">
+            <label>Lãi suất (%/năm)</label>
+            <input type="text" id="rate" oninput="formatDecimalOnly(this)" placeholder="Ví dụ: 5,5">
+        </div>
+        <div class="input-group">
+            <label>Kỳ hạn (Tháng)</label>
+            <input type="text" id="months" oninput="formatDecimalOnly(this)" placeholder="Ví dụ: 6">
+        </div>
+
+        <div class="btn-group" id="action-buttons">
+            <button class="btn btn-calc" onclick="calculateInterest()">Tính Toán</button>
+            <button class="btn btn-export" id="btn-export" onclick="exportImage()">📸 Xuất Ảnh</button>
+        </div>
+
+        <div id="results" style="display:none;">
+            <div class="row">
+                <span>Lãi 1 tháng (30 ngày):</span>
+                <span class="val" id="res-month">0 đ</span>
+            </div>
+            <div class="row big">
+                <span>💰 Lãi thực nhận:</span>
+                <span class="val" id="res-interest">0 đ</span>
+            </div>
+            <div class="row">
+                <span>Tổng gốc + lãi:</span>
+                <span class="val" id="res-total">0 đ</span>
+            </div>
+            <div style="text-align: center; font-size: 10px; color: #888; margin-top: 10px; font-style: italic;">
+                (Công thức: Tiền gửi x %Lãi x Số ngày thực / 365)
+            </div>
+        </div>
+    </div>
+
+    <div class="history-box">
+        <div class="history-header">
+            <h3>📜 Lịch sử tính toán</h3>
+            <button class="btn-clear" onclick="clearHistory()">Xóa tất cả</button>
+        </div>
+        <div id="history-empty" style="text-align: center; color: #888; font-size: 13px;">Chưa có dữ liệu.</div>
+        <ul class="history-list" id="history-list"></ul>
+    </div>
+</div>
+
+<script>
+    // --- 1. DARK MODE ---
+    function toggleTheme() {
+        document.body.classList.toggle('dark-mode');
+    }
+
+    // --- 2. FORMAT ---
+    function formatCurrency(input) {
+        let val = input.value.replace(/[^0-9,]/g, '');
+        let parts = val.split(',');
+        parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+        input.value = parts.length > 1 ? parts[0] + ',' + parts[1] : parts[0];
+    }
+    function formatDecimalOnly(input) {
+        let val = input.value.replace(/[^0-9,]/g, '');
+        let parts = val.split(',');
+        if(parts.length > 2) val = parts[0] + ',' + parts.slice(1).join('');
+        input.value = val;
+    }
+    function parseNum(str) { return str ? parseFloat(str.replace(/\./g, '').replace(',', '.')) : 0; }
+    
+    const fmt = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
+
+    // --- 3. TÍNH TOÁN ---
+    function calculateInterest() {
+        let P = parseNum(document.getElementById('principal').value);
+        let r = parseNum(document.getElementById('rate').value);
+        let m = parseNum(document.getElementById('months').value);
+
+        if (P === 0 || isNaN(P) || isNaN(r) || isNaN(m)) {
+            alert("Vui lòng nhập đầy đủ thông tin!");
+            return;
+        }
+
+        let days = m * 30;
+        let interest = P * (r/100) * days / 365;
+        let monthRef = P * (r/100) * 30 / 365;
+        let total = P + interest;
+
+        document.getElementById('res-month').textContent = fmt.format(monthRef);
+        document.getElementById('res-interest').textContent = fmt.format(interest);
+        document.getElementById('res-total').textContent = fmt.format(total);
+        
+        document.getElementById('results').style.display = 'block';
+        
+        // Hiện nút xuất ảnh bằng flex
+        document.getElementById('btn-export').style.display = 'flex';
+
+        saveToHistory(P, r, m, interest, total);
+    }
+
+    // --- 4. LỊCH SỬ ---
+    function saveToHistory(P, r, m, interest, total) {
+        const item = { id: Date.now(), time: new Date().toLocaleString('vi-VN'), P, r, m, interest, total };
+        let history = JSON.parse(localStorage.getItem('lai_suat_history')) || [];
+        history.unshift(item);
+        if (history.length > 20) history.pop();
+        localStorage.setItem('lai_suat_history', JSON.stringify(history));
+        renderHistory();
+    }
+
+    function renderHistory() {
+        let history = JSON.parse(localStorage.getItem('lai_suat_history')) || [];
+        const listEl = document.getElementById('history-list');
+        const emptyEl = document.getElementById('history-empty');
+
+        listEl.innerHTML = '';
+        if (history.length === 0) { emptyEl.style.display = 'block'; return; }
+        emptyEl.style.display = 'none';
+
+        history.forEach(item => {
+            const li = document.createElement('li');
+            li.className = 'history-item';
+            li.innerHTML = `
+                <div class="h-time">${item.time}</div>
+                <div class="h-detail"><span>Gửi: <b>${fmt.format(item.P)}</b> (${item.m}th, ${item.r}%)</span></div>
+                <div class="h-detail"><span>Lãi: <span class="h-total">+${fmt.format(item.interest)}</span></span></div>
+            `;
+            listEl.appendChild(li);
+        });
+    }
+
+    function clearHistory() {
+        if(confirm('Xóa toàn bộ lịch sử?')) {
+            localStorage.removeItem('lai_suat_history');
+            renderHistory();
+        }
+    }
+
+    // --- 5. XUẤT ẢNH (ĐÃ SỬA LOGIC ẨN NÚT) ---
+    function exportImage() {
+        const element = document.getElementById("capture-area");
+        
+        // Lấy các phần tử cần ẩn
+        const buttons = document.getElementById('action-buttons');
+        const themeBtn = document.getElementById('btn-theme');
+
+        // Tạm ẩn đi
+        buttons.style.display = 'none';
+        themeBtn.style.display = 'none';
+        
+        html2canvas(element, {
+            backgroundColor: getComputedStyle(document.body).getPropertyValue('--bg-card').trim(),
+            scale: 2
+        }).then(canvas => {
+            const link = document.createElement('a');
+            link.download = `Bill_Lai_Suat_${Date.now()}.png`;
+            link.href = canvas.toDataURL();
+            link.click();
+
+            // Hiện lại sau khi chụp xong
+            buttons.style.display = 'flex';
+            themeBtn.style.display = 'block';
+        });
+    }
+
+    window.onload = renderHistory;
+</script>
+
+</body>
+</html>
